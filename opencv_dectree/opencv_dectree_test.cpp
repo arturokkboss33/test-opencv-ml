@@ -1,20 +1,20 @@
-/*
- * =====================================================================================
+/* =============================================================*/
+/* --- DECISION TREES- OPENCV DECISION TREE CLASS            ---*/
+/* FILENAME: dectree_class.cpp 
  *
- *       Filename:  opencv_dectree_test.cpp
+ * DESCRIPTION: basic example on how to use decision trees in 
+ * opencv
  *
- *    Description:  
+ * VERSION: 1.0
  *
- *        Version:  1.0
- *        Created:  07/30/2014 02:49:25 PM
- *       Revision:  none
- *       Compiler:  gcc
+ * CREATED: 07/30/2013
  *
- *         Author:  YOUR NAME (), 
- *   Organization:  
+ * COMPILER: g++
  *
- * =====================================================================================
- */
+ * AUTHOR: ARTURO GOMEZ CHAVEZ
+ * ALIAS: BOSSLEGEND33
+ * 
+ * ============================================================ */
 
 #include "opencv2/core/core_c.h"
 #include "opencv2/ml/ml.hpp"
@@ -26,13 +26,8 @@
 #include <iomanip>
 #include <fstream>
 
-
-//std::vector< std::vector<float> > training_set;
-cv::Mat training_set;
-cv::Mat responses;
-
-
-void load_trainset(std::string filename, cv::Mat& datai)
+//Method to parse a file containing training data for a decision tree
+void load_trainset(std::string filename, cv::Mat& data, cv::Mat& resp)
 {
 
 	//Variables for parsing the data file
@@ -43,8 +38,6 @@ void load_trainset(std::string filename, cv::Mat& datai)
 	char c[ssize];
 	char delimiter = ',';
 
-	//Variables to store the values in the data file
-	//std::vector<float> tmpcase;
 
 	std::ifstream dataset_file(filename.c_str(), std::ios::in);
 
@@ -62,8 +55,8 @@ void load_trainset(std::string filename, cv::Mat& datai)
 
 			while( parse.getline(c,ssize,delimiter) )
 			{
-				if(c_atr == 0)
-					responses.push_back((float)atof(c));
+				if(c_atr == 0) //the 1st column contains the response
+					resp.push_back((float)atof(c));
 				else
 					tmpcase.push_back((float)atof(c));
 
@@ -74,7 +67,7 @@ void load_trainset(std::string filename, cv::Mat& datai)
 			parse.clear(); //clear flags to be able to read from it again
 			
 			tmpcase = tmpcase.t();
-			training_set.push_back(tmpcase);
+			data.push_back(tmpcase);
 			~tmpcase; 
 		}
 	}
@@ -82,10 +75,10 @@ void load_trainset(std::string filename, cv::Mat& datai)
 }
 
 
-std::vector<double> test_tree(std::string filename, CvDTree* dectree)
+std::vector<double> test_tree(std::string filename, CvDTree* dectree, int no_attributes)
 {
 	std::vector<double> results;
-	cv::Mat mask(1,training_set.cols,CV_8U, cv::Scalar(0));
+	cv::Mat mask(1,no_attributes,CV_8U, cv::Scalar(0));
 	//Variables for parsing the data file
 	std::string line;
 	std::stringstream parse;
@@ -93,9 +86,6 @@ std::vector<double> test_tree(std::string filename, CvDTree* dectree)
 			 //which for binary classification string are no bigger than 1
 	char c[ssize];
 	char delimiter = ',';
-
-	//Variables to store the values in the data file
-	//std::vector<float> tmpcase;
 
 	std::ifstream testset_file(filename.c_str(), std::ios::in);
 
@@ -129,16 +119,21 @@ std::vector<double> test_tree(std::string filename, CvDTree* dectree)
 			parse.clear(); //clear flags to be able to read from it again
 			
 			tmpcase = tmpcase.t();
+			double pred_result = dectree->predict(tmpcase,mask)->value; //obtain prediction value
+			results.push_back(pred_result);
+			int isPredCorrect = fabs(pred_result-tmpresult) >= FLT_EPSILON; //check if the prediction is accurate
+			
+			//for debugging
+			/*
 			std::cout << tmpcase << std::endl;
-			double r = dectree->predict(tmpcase,mask)->value;
-			std::cout << r << " * " << tmpresult << std::endl;
-			results.push_back(r);
-			int d = fabs(r-tmpresult) >= FLT_EPSILON;
-			std::cout << d << std::endl;
-			if(d)
+			std::cout << pred_result << " * " << tmpresult << std::endl;
+			std::cout << isPredCorrect << std::endl;
+			*/
+
+			if(isPredCorrect)
 			{
 				mis_classif++;
-				std::cout << "+++" << std::endl;
+				//std::cout << "+++" << std::endl;
 			}
 			no_cases++;
 			~tmpcase; 
@@ -155,57 +150,68 @@ std::vector<double> test_tree(std::string filename, CvDTree* dectree)
 
 }
 
+
+//MAIN METHOD
 int
 main ( int argc, char *argv[] )
 {
-	//Read database
-	cv::Mat training_data;
+	//Variables to store information about the training set
+	cv::Mat training_set;
+	cv::Mat responses;
+	
 	//variables to parse the console input and search te trainig and test files
 	std::string train_dir = "../TrainSets/";
 	std::string test_dir = "../TestSets/";
 	std::string train_ext = ".train";
 	std::string test_ext = ".test";
 	std::string train_file = train_dir+argv[1]+train_ext;	
-	std::string test_file = test_dir+argv[1]+test_ext;	
-	load_trainset(train_file, training_data);
+	std::string test_file = test_dir+argv[1]+test_ext;
+
+	//fill the matrixes with the training data from a file
+	//here the CvMLData class can be used if the information is in .csv format	
+	load_trainset(train_file, training_set, responses);
+	//for debugging
+	/*
 	std::cout << responses.row(0) << std::endl;
 	std::cout << training_set.row(0) << std::endl;
 	std::cout << training_set.type() << std::endl;
-
+	*/
 	 
-	//Create tree
+	//--- CREATE DECISION TREE ---//
 	CvDTree* dtree;
-	//CvMat* var_type;
-	//CvMat* missing;
-	float priors[] = {1.,1.};
-
-	//var_type = cvCreateMat(training_set.cols+1,1,CV_8U);//specify if the attributes and responses are ordered or categorical
-	//cvSet(var_type, cvScalarAll(CV_VAR_CATEGORICAL)); //set the matrix 
-	cv::Mat missing(training_set.size(),CV_8U,cv::Scalar(0));
-	cv::Mat var_type(training_set.cols+1,1,CV_8U, cvScalarAll(CV_VAR_CATEGORICAL));	
-
-
+	float priors[] = {1.,1.}; //weights given to the misclassification of each class
+	cv::Mat missing(training_set.size(),CV_8U,cv::Scalar(0)); //matrix used to indicate missing values with a 1
+	cv::Mat var_type(training_set.cols+1,1,CV_8U, cvScalarAll(CV_VAR_CATEGORICAL));	//matrix that states if each
+											//feature is ordered or categorical
 	dtree = new CvDTree;
-
-	dtree->train(training_set, CV_ROW_SAMPLE, responses, cv::Mat(), cv::Mat(), var_type, missing, 
-		     CvDTreeParams(300, //max_depth
-		     		   0,  //min_sample_count
-				   0,  //regression accuracy, N/A for categorical
+	//decision tree training method
+	dtree->train(training_set, 	  //cv::Mat containing samples and their attribute values 
+		     CV_ROW_SAMPLE, 	  //defines if there is a sample ine very row or col
+		     responses, 	  //vector containing the responses of every sample
+		     cv::Mat(), 	  //vector to indicate which attributes to consider for the training (0-skip)
+		     cv::Mat(), 	  //vector to indicate which samples to consider for the training (0-skip)
+		     var_type, 		  //matrix that states if eacg feature is ordered or categorical
+		     missing, 		  //matrix used to indicate missing values with a 1
+		     CvDTreeParams(300,	  //max depth of the tree
+		     		   0,  	  //min number of samples in a node to make a split
+				   0,  	  //regression accuracy, N/A for categorical, termination criteria for regression 
 				   false, //compute surrogate split
-				   300, //max number of categories
-				   1, //the number of cross-validation folds to prune
-				   false, //harsher pruning
-				   true, //throw away pruned branches
+				   300,   //max number of categories - if more pre-clustering is made
+				   1, 	  //prune a tree with K-cross validation
+				   false, //enable harsher pruning
+				   true,  //throw away pruned branches
 				   priors //array of priors (weights)
 				   ));	
 	std::cout << "Training ready..." << std::endl;	
-
+	// --- --- //
+	
+	//--- DECISION TREE PREDICTION ---//
 	std::cout << "Testing cases..." << std::endl;
 	std::vector<double> predictions;
-	predictions = test_tree(test_file,dtree);
-
+	predictions = test_tree(test_file,dtree,training_set.cols);
+	//get variable importance
 	cv::Mat imp = dtree->getVarImportance();
-	std::cout << imp << std::endl;
+	//std::cout << imp << std::endl;
 
 
 	return 0;
