@@ -37,16 +37,13 @@ how to
 
 - Run make. 
 
-- Run the exe file generated with the next instruction:
+- Run the exe file generated with the next instruction: ./dectree_exe FILE
 
-./dectree_exe FILE
+  Where FILE is the base name of your training and test dataset (without extension).
 
-Where FILE is the base name of your training and test dataset (without extension).
+  Name your training dataset as FILE.train and your test dataset as FILE.test, and see the examples in the project to      ensure their correct parsing. (And save the files in the correct folder!)
 
-Name your training dataset as FILE.train and your test dataset as FILE.test, and see the examples in the project to ensure their correct parsing. 
-(And save the files in the correct folder!)
-
-The first column in the files is the output classification, and the rest is the binary value of the cases' attributes.
+  The first column in the files is the output classification, and the rest is the binary value of the cases' attributes.
 
 2) For the rest ML methods (opencv_dectree):
 
