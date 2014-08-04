@@ -1,13 +1,13 @@
 /* =============================================================*/
-/* --- RANDOM FOREST - OPENCV DECISION TREE CLASS            ---*/
+/* --- RANDOM FOREST - OPENCV RANDOM FOREST CLASS            ---*/
 /* FILENAME: opencv_ranforest.cpp 
  *
- * DESCRIPTION: basic example on how to use decision trees in 
+ * DESCRIPTION: basic example on how to use random forests in 
  * opencv
  *
  * VERSION: 1.0
  *
- * CREATED: 07/30/2013
+ * CREATED: 08/02/2013
  *
  * COMPILER: g++
  *
