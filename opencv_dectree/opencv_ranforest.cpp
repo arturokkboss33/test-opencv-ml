@@ -1,6 +1,6 @@
 /* =============================================================*/
-/* --- DECISION TREES- OPENCV DECISION TREE CLASS            ---*/
-/* FILENAME: dectree_class.cpp 
+/* --- RANDOM FOREST - OPENCV DECISION TREE CLASS            ---*/
+/* FILENAME: opencv_ranforest.cpp 
  *
  * DESCRIPTION: basic example on how to use decision trees in 
  * opencv
@@ -75,7 +75,7 @@ void load_trainset(std::string filename, cv::Mat& data, cv::Mat& resp)
 }
 
 
-std::vector<double> test_tree(std::string filename, CvDTree* dectree, int no_attributes)
+std::vector<double> test_ranforest(std::string filename, CvRTrees* forest, int no_attributes)
 {
 	std::vector<double> results;
 	cv::Mat mask(1,no_attributes,CV_8U, cv::Scalar(0));
@@ -119,12 +119,12 @@ std::vector<double> test_tree(std::string filename, CvDTree* dectree, int no_att
 			parse.clear(); //clear flags to be able to read from it again
 			
 			tmpcase = tmpcase.t();
-			double pred_result = dectree->predict(tmpcase,mask)->value; //obtain prediction value
+			double pred_result = forest->predict(tmpcase,mask); //obtain prediction value
 			results.push_back(pred_result);
 			int isPredCorrect = fabs(pred_result-tmpresult) >= FLT_EPSILON; //check if the prediction is accurate
 			
 			//for debugging
-			/*
+			/* 
 			std::cout << tmpcase << std::endl;
 			std::cout << pred_result << " * " << tmpresult << std::endl;
 			std::cout << isPredCorrect << std::endl;
@@ -156,8 +156,8 @@ int
 main ( int argc, char *argv[] )
 {
 	//Variables to store information about the training set
-	cv::Mat training_set;
-	cv::Mat responses;
+	cv::Mat attr_mat;
+	cv::Mat resp_vec;
 	
 	//variables to parse the console input and search te trainig and test files
 	std::string train_dir = "../TrainSets/";
@@ -169,53 +169,68 @@ main ( int argc, char *argv[] )
 
 	//fill the matrixes with the training data from a file
 	//here the CvMLData class can be used if the information is in .csv format	
-	load_trainset(train_file, training_set, responses);
+	load_trainset(train_file, attr_mat, resp_vec);
 	//for debugging
 	/*
-	std::cout << responses.row(0) << std::endl;
-	std::cout << training_set.row(0) << std::endl;
-	std::cout << training_set.type() << std::endl;
+	std::cout << resp_vec.row(0) << std::endl;
+	std::cout << attr_mat.row(0) << std::endl;
+	std::cout << attr_mat.type() << std::endl;
 	*/
-	 
-	//--- CREATE DECISION TREE ---//
-	CvDTree* dtree;
-	float priors[] = {1.,1.}; //weights given to the misclassification of each class
-	cv::Mat missing(training_set.size(),CV_8U,cv::Scalar(0)); //matrix used to indicate missing values with a 1
-	cv::Mat var_type(training_set.cols+1,1,CV_8U, cvScalarAll(CV_VAR_CATEGORICAL));	//matrix that states if each
-											//feature is ordered or categorical
-	dtree = new CvDTree;
-	//decision tree training method
-	dtree->train(training_set, 	  //cv::Mat containing samples and their attribute values 
-		     CV_ROW_SAMPLE, 	  //defines if there is a sample ine very row or col
-		     responses, 	  //vector containing the responses of every sample
-		     cv::Mat(), 	  //vector to indicate which attributes to consider for the training (0-skip)
-		     cv::Mat(), 	  //vector to indicate which samples to consider for the training (0-skip)
-		     var_type, 		  //matrix that states if eacg feature is ordered or categorical
-		     missing, 		  //matrix used to indicate missing values with a 1
-		     CvDTreeParams(300,	  //max depth of the tree
-		     		   6,  	  //min number of samples in a node to make a split
-				   0,  	  //regression accuracy, N/A for categorical, termination criteria for regression 
-				   true, //compute surrogate split
-				   300,   //max number of categories - if more pre-clustering is made
-				   4, 	  //prune a tree with K-cross validation
-				   false, //enable harsher pruning
-				   true,  //throw away pruned branches
-				   0//priors //array of priors (weights)
-				   ));	
-	std::cout << "Training ready..." << std::endl;	
-	// --- --- //
 	
-	//--- DECISION TREE PREDICTION ---//
+	//--- CREATE RANDOM FOREST ---//
+	CvRTrees* forest;
+	cv::Mat var_type(attr_mat.cols+1,1,CV_8U, cvScalarAll(CV_VAR_CATEGORICAL));
+	cv::Mat missing(attr_mat.size(), CV_8U, cv::Scalar(0));
+	float priors[] = {1.,1.};
+	
+	std::cout << "Training random forest..." << std::endl;
+	forest = new CvRTrees;
+	forest->train(	attr_mat,	//cv::Mat containing samples and their attribute values
+			CV_ROW_SAMPLE,	//defines if there is a sample ine very row or col
+			resp_vec,	//vector containing the responses of every sample
+			cv::Mat(),	//vector to indicate which attributes to consider for the training (0-skip)
+			cv::Mat(),	//vector to indicate which samples to consider for the training (0-skip)
+			var_type,	//matrix that states if eacg feature is ordered or categorical
+			missing,	//matrix used to indicate missing values with a 1
+			CvRTParams(	10, 	//max depth of the tree
+					10,	//min number of samples in a node to make a split
+					0,	//regression acuracy, N/A for categorical, termination criteria for regression
+					true,  //compute surrogate splits
+					100, 	//max number of categories
+					priors,	//array of priors (weights)
+					true,	//calculate var importance
+					0,	//active vars, number of variables used to build each tree node
+					100,	//max number of trees in the forest
+					0.01,  //sufficient accuracy (OOB error)
+					CV_TERMCRIT_ITER //termination criteria, by reaching max number of trees and/or accuracy
+			));
+
+	std::cout << "Ready" << std::endl;
+
+	//--- RANDOM FOREST PREDICTION ---//
+	std::cout << "No trees: " << forest->get_tree_count() << std::endl;
 	std::cout << "Calculating training error..." << std::endl;
-	std::vector<double> predictions;
-	predictions = test_tree(train_file,dtree,training_set.cols);
+	std::cout << "Error %: " << forest->get_train_error() << std::endl;
+
 	std::cout << "Evaluating test cases..." << std::endl;
-	predictions = test_tree(test_file,dtree,training_set.cols);
-	//get variable importance
-	cv::Mat imp = dtree->getVarImportance();
-	std::cout << "Variable importance..." << std::endl;
-	std::cout << imp << std::endl;
+	std::vector<double> predictions;
+	predictions = test_ranforest(test_file,forest,attr_mat.cols);
 
+	//--- OTHER RF METHODS ---//
+	//variable importance
+	cv::Mat var_imp = forest->getVarImportance();
+	std::cout << "Variable importance: " << std::endl;
+	std::cout << var_imp << std::endl;
+	//proximity
+	//std::cout << attr_mat.rows << std::endl;
+	cv::Mat sample1 = attr_mat.row(11).clone();		
+	cv::Mat sample2 = attr_mat.row(12).clone();
+	//std::cout << sample1 << std::endl;
+	CvMat s1 = sample1;
+	CvMat s2 = sample2;
+	std::cout << "Proximities" << std::endl;
+	std::cout << forest->get_proximity(&s1,&s2) << std::endl;		
 
+ 
 	return 0;
 }				/* ----------  end of function main  ---------- */
