@@ -20,8 +20,7 @@ The accuracy achieved with the ML methods applied so far are:
 comments
 ========
 
-The previous results were achieved by modifying manually the paramertes of each ML method. Better accuracy in the data set can be achieve 
-by compromising the accuracy in the tranining set.
+The previous results were achieved by modifying manually the paramertes of each ML method. Better accuracy in the data set can be achieved by compromising the accuracy in the tranining set.
 
 installation
 ============
